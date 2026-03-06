@@ -38,14 +38,25 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Configuration
-SUBSCRIPTION_ID="2165d0b7-5e28-4054-9df0-10871d681f2c"
-RESOURCE_GROUP="react-app-rg"
-STATIC_WEB_APP_NAME="react-app-prod"
-REGION="eastus2"  # Static Web Apps region (eastus not available)
-BUILD_DIR="./dist"
-APP_LOCATION="/"
-OUTPUT_LOCATION="dist"
+# ============================================================================
+# Configuration - Load from environment variables (with auto-detection fallback)
+# ============================================================================
+
+# Load config file if it exists
+if [ -f ".azure/config.env" ]; then
+  set +u  # Temporarily allow unset variables
+  source ".azure/config.env"
+  set -u  # Re-enable strict mode
+fi
+
+# Configuration - with smart defaults
+SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID:-}"
+RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-}"
+STATIC_WEB_APP_NAME="${AZURE_STATIC_WEB_APP:-}"
+REGION="${AZURE_REGION:-eastus2}"  # Static Web Apps region
+BUILD_DIR="${AZURE_BUILD_DIR:-./dist}"
+APP_LOCATION="${AZURE_APP_LOCATION:-/}"
+OUTPUT_LOCATION="${AZURE_OUTPUT_LOCATION:-dist}"
 
 # Logging functions
 log_phase() { echo -e "\n${GREEN}→ $1${NC}"; }
@@ -79,16 +90,62 @@ if [ -z "$CURRENT_SUBSCRIPTION" ]; then
   log_error "Not logged in to Azure. Run: az login"
   exit 1
 fi
-log_info "Current subscription: $CURRENT_SUBSCRIPTION"
 
-# Switch to target subscription
-if [ "$CURRENT_SUBSCRIPTION" != "$SUBSCRIPTION_ID" ]; then
-  log_info "Switching to target subscription..."
-  az account set --subscription "$SUBSCRIPTION_ID"
-  log_success "Switched to target subscription"
+# Use current subscription if none specified
+if [ -z "$SUBSCRIPTION_ID" ]; then
+  SUBSCRIPTION_ID="$CURRENT_SUBSCRIPTION"
+  log_info "Using current subscription: $SUBSCRIPTION_ID"
 else
-  log_success "Already on target subscription"
+  log_info "Using subscription: $SUBSCRIPTION_ID"
+  if [ "$CURRENT_SUBSCRIPTION" != "$SUBSCRIPTION_ID" ]; then
+    log_info "Switching to target subscription..."
+    az account set --subscription "$SUBSCRIPTION_ID" > /dev/null
+    log_success "Switched to target subscription"
+  else
+    log_success "Already on target subscription"
+  fi
 fi
+
+# Auto-detect resource group if not specified
+if [ -z "$RESOURCE_GROUP" ]; then
+  log_info "Auto-detecting resource group..."
+  RG_LIST=$(az group list --query "[].name" --output tsv)
+  RG_COUNT=$(echo "$RG_LIST" | wc -w)
+  
+  if [ "$RG_COUNT" -eq 0 ]; then
+    log_error "No resource groups found"
+    exit 1
+  elif [ "$RG_COUNT" -eq 1 ]; then
+    RESOURCE_GROUP=$RG_LIST
+    log_success "Resource Group: $RESOURCE_GROUP (auto-detected)"
+  else
+    log_error "Multiple resource groups found. Specify with: AZURE_RESOURCE_GROUP=name"
+    echo "$RG_LIST" | sed 's/^/  - /'
+    exit 1
+  fi
+fi
+log_info "Resource Group: $RESOURCE_GROUP"
+
+# Auto-detect Static Web App if not specified
+if [ -z "$STATIC_WEB_APP_NAME" ]; then
+  log_info "Auto-detecting Static Web App..."
+  APP_LIST=$(az staticwebapp list --resource-group "$RESOURCE_GROUP" --query "[].name" --output tsv 2>/dev/null || echo "")
+  APP_COUNT=$(echo "$APP_LIST" | wc -w)
+  
+  if [ "$APP_COUNT" -eq 0 ]; then
+    log_info "No Static Web App found. Creating new one..."
+    STATIC_WEB_APP_NAME="${RANDOM}-app"
+    log_info "Will create: $STATIC_WEB_APP_NAME"
+  elif [ "$APP_COUNT" -eq 1 ]; then
+    STATIC_WEB_APP_NAME=$APP_LIST
+    log_success "Static Web App: $STATIC_WEB_APP_NAME (auto-detected)"
+  else
+    log_error "Multiple Static Web Apps found. Specify with: AZURE_STATIC_WEB_APP=name"
+    echo "$APP_LIST" | sed 's/^/  - /'
+    exit 1
+  fi
+fi
+log_info "Static Web App: $STATIC_WEB_APP_NAME"
 
 # ============================================================================
 # Phase 2: Building React Application
