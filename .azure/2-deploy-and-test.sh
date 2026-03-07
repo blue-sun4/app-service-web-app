@@ -268,8 +268,7 @@ log_success "Deployment credentials retrieved"
 log_info "Uploading application to Azure..."
 if ! node_modules/.bin/swa deploy \
   ./dist \
-  --deployment-token "$DEPLOY_TOKEN" \
-  --skip-app-build > /dev/null 2>&1; then
+  --deployment-token "$DEPLOY_TOKEN" > /dev/null 2>&1; then
   log_error "Deployment failed. Check Azure credentials and app name"
   exit 1
 fi

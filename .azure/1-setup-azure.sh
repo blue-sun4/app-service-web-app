@@ -247,10 +247,7 @@ if ! az staticwebapp show \
   az staticwebapp create \
     --name "$AZURE_STATIC_WEB_APP" \
     --resource-group "$AZURE_RESOURCE_GROUP" \
-    --location "$AZURE_REGION" \
-    --source /dev/null \
-    --branch main \
-    --skip-github-action-workflow > /dev/null
+    --location "$AZURE_REGION" > /dev/null
   
   log_success "Static Web App created"
 else
