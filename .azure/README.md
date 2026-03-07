@@ -1,52 +1,160 @@
-# Azure Deployment Artifacts - Summary
+# Deployment Scripts
 
-Your React app is now ready for deployment to Azure App Service. Here's what was generated:
+Two simple scripts to manage your Azure Static Web Apps deployment:
 
-## 📁 Generated Files
+## 📋 Scripts
 
-### `.azure/` Folder
+### 1. Setup Azure Infrastructure (Run Once)
+```bash
+./.azure/1-setup-azure.sh
+```
 
-| File | Purpose |
-|------|---------|
-| **deploy.sh** | Automated deployment script - runs all steps from build to deployment |
-| **web.config** | IIS configuration for proper SPA routing (handles client-side routing) |
-| **startup.sh** | Node.js startup script for static file serving |
-| **plan.md** | Deployment plan and architecture decisions |
-| **DEPLOYMENT-GUIDE.md** | Comprehensive step-by-step deployment guide |
-| **QUICK-DEPLOY.md** | Quick reference for fastest deployment |
-| **README.md** | This file |
+**What it does:**
+- ✓ Verifies Azure CLI and authentication
+- ✓ Creates/configures Resource Group
+- ✓ Creates Static Web App
+- ✓ Stores configuration in `.azure/config.env`
 
-### `.github/workflows/` Folder
+**When to run:** First time setting up Azure
 
-| File | Purpose |
-|------|---------|
-| **azure-deploy.yml** | GitHub Actions workflow for CI/CD (automatic deployment on git push) |
+---
+
+### 2. Build, Deploy & Test (Run Each Deploy)
+```bash
+./.azure/2-deploy-and-test.sh
+```
+
+**What it does:**
+- ✓ Builds your React application
+- ✓ Deploys to Azure Static Web Apps
+- ✓ Tests all routes (/, /about, /contact-us)
+- ✓ Verifies deployment succeeded
+
+**Options:**
+```bash
+# Skip route testing
+./.azure/2-deploy-and-test.sh --skip-tests
+
+# Deploy and push to Git
+./.azure/2-deploy-and-test.sh --with-git
+```
+
+**When to run:** Every time you want to deploy changes
 
 ---
 
 ## 🚀 Quick Start
 
-### Option 1: Automated Script (Easiest)
-
 ```bash
-# Make executable
-chmod +x .azure/deploy.sh
+# 1. Setup Azure (first time only)
+./.azure/1-setup-azure.sh
 
-# Run deployment
-.azure/deploy.sh
+# 2. Deploy and test
+./.azure/2-deploy-and-test.sh
+
+# 3. Deploy with Git push (optional)
+./.azure/2-deploy-and-test.sh --with-git
 ```
 
-**What it does:**
-1. Validates Azure CLI and dependencies
-2. Builds your React app
-3. Creates Azure resources (Resource Group, App Service Plan, App Service)
-4. Deploys the built app
-5. Configures HTTPS
-6. Prints your live App URL
+---
 
-**Time**: 5-10 minutes
+## 🔧 Configuration
 
-### Option 2: Manual Commands
+Settings are stored in `.azure/config.env`:
+```env
+AZURE_SUBSCRIPTION_ID="..."
+AZURE_RESOURCE_GROUP="react-app-rg"
+AZURE_REGION="eastus2"
+AZURE_STATIC_WEB_APP="react-app-prod"
+AZURE_BUILD_DIR="./dist"
+```
+
+Edit manually or run `1-setup-azure.sh` again to reconfigure.
+
+---
+
+## ✅ Prerequisites
+
+Required tools:
+- Azure CLI: `brew install azure-cli`
+- jq: `brew install jq`
+- Node.js & yarn: Already installed
+- swa CLI: Installed automatically if missing
+
+Ensure you're logged in:
+```bash
+az login
+```
+
+---
+
+## 🐛 Troubleshooting
+
+**"Azure CLI not installed"**
+```bash
+brew install azure-cli
+```
+
+**"jq not installed"**
+```bash
+brew install jq
+```
+
+**"swa CLI not found"**
+```bash
+yarn add -D @azure/static-web-apps-cli
+```
+
+**"Not logged into Azure"**
+```bash
+az login
+```
+
+---
+
+## 📚 Related Commands
+
+**View live logs:**
+```bash
+az staticwebapp logs \
+  --name react-app-prod \
+  --resource-group react-app-rg
+```
+
+**View deployment status:**
+```bash
+az staticwebapp show \
+  --name react-app-prod \
+  --resource-group react-app-rg
+```
+
+**Local development:**
+```bash
+yarn dev
+```
+
+---
+
+## 🗂️ File Structure
+
+```
+.azure/
+├── 1-setup-azure.sh       # Setup Azure infrastructure
+├── 2-deploy-and-test.sh   # Build, deploy, and test
+├── config.env             # Configuration (auto-generated)
+├── staticwebapp.config.json # SPA routing config
+└── README.md              # This file
+```
+
+---
+
+## 📝 What changed
+
+Consolidated 9 scripts into 2 focused scripts:
+- `init-config.sh` → merged into `1-setup-azure.sh`
+- `deploy.sh`, `deploy-local.sh`, `deploy-swa.sh` → merged into `2-deploy-and-test.sh`
+- `upload.sh`, `upload-secure.sh` → merged into `2-deploy-and-test.sh`
+- Removed deprecated App Service scripts
 
 Follow the individual step-by-step commands in:
 - `.azure/DEPLOYMENT-GUIDE.md` (detailed instructions)
